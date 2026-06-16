@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>筛查结果 — 价格行为学</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
+
+.container { max-width: 820px; margin: 0 auto; padding: 24px 16px 60px; }
+
+/* 评分卡 */
+.score-card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 32px; text-align: center; margin-bottom: 24px;
+}
+.score-ring {
+    width: 140px; height: 140px; border-radius: 50%; margin: 0 auto 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 42px; font-weight: 800; position: relative;
+}
+.score-ring.excellent { background: conic-gradient(#2ea043 0%, #2ea043 100%); color: #fff; box-shadow: 0 0 30px rgba(46,160,67,0.3); }
+.score-ring.good { background: conic-gradient(#388bfd 0%, #388bfd 100%); color: #fff; box-shadow: 0 0 30px rgba(56,139,253,0.3); }
+.score-ring.questionable { background: conic-gradient(#d29922 0%, #d29922 100%); color: #fff; box-shadow: 0 0 30px rgba(210,153,34,0.3); }
+.score-ring.bad { background: conic-gradient(#f85149 0%, #f85149 100%); color: #fff; box-shadow: 0 0 30px rgba(248,81,73,0.3); }
+
+.score-inner { background: #161b22; width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.score-number { font-size: 36px; font-weight: 800; }
+.score-number.excellent { color: #2ea043; }
+.score-number.good { color: #388bfd; }
+.score-number.questionable { color: #d29922; }
+.score-number.bad { color: #f85149; }
+
+.score-label { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+.score-label.excellent { color: #2ea043; }
+.score-label.good { color: #388bfd; }
+.score-label.questionable { color: #d29922; }
+.score-label.bad { color: #f85149; }
+
+.trade-info { font-size: 14px; color: #8b949e; margin-bottom: 4px; }
+.trade-tag { display: inline-block; background: #21262d; border: 1px solid #30363d; border-radius: 6px; padding: 4px 12px; font-size: 13px; margin-top: 8px; }
+
+/* 各类区块 */
+.section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
+.section-header { padding: 14px 20px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 8px; }
+.section-header h3 { font-size: 14px; font-weight: 600; }
+.section-header.red h3 { color: #f85149; }
+.section-header.green h3 { color: #2ea043; }
+.section-header.yellow h3 { color: #d29922; }
+.section-body { padding: 16px 20px; }
+
+/* 致命错误 */
+.fatal-item { background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.2); border-radius: 6px; padding: 12px 16px; margin-bottom: 10px; font-size: 13px; line-height: 1.7; white-space: pre-line; color: #ffa198; }
+.fatal-item:last-child { margin-bottom: 0; }
+
+/* Finding条目 */
+.finding-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; font-size: 13px; border-bottom: 1px solid #21262d; }
+.finding-item:last-child { border-bottom: none; }
+.finding-item .icon { flex-shrink: 0; font-size: 14px; }
+.finding-item .msg { flex: 1; }
+.finding-item .pts { flex-shrink: 0; font-weight: 600; font-size: 12px; }
+.finding-item .pts.positive { color: #2ea043; }
+.finding-item .pts.negative { color: #f85149; }
+
+/* 建议区 */
+.advice-box { background: #1c2333; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+.advice-box h3 { font-size: 14px; color: #f0f6fc; margin-bottom: 10px; font-weight: 600; }
+.advice-box p { font-size: 13px; line-height: 1.8; color: #c9d1d9; white-space: pre-line; }
+
+.walmart-box { background: rgba(46,160,67,0.08); border: 1px solid rgba(46,160,67,0.2); border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+.walmart-box h3 { font-size: 14px; color: #2ea043; margin-bottom: 6px; }
+.walmart-box p { font-size: 13px; color: #8b949e; line-height: 1.6; }
+
+/* 按钮 */
+.btn-back { display: inline-block; background: #21262d; border: 1px solid #30363d; border-radius: 6px; padding: 10px 24px; color: #c9d1d9; text-decoration: none; font-size: 14px; transition: all 0.15s; }
+.btn-back:hover { background: #30363d; }
+
+@media (max-width: 600px) {
+    .score-card { padding: 20px; }
+    .score-ring, .score-inner { width: 100px; height: 100px; }
+    .score-number { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<!-- 评分卡 -->
+<div class="score-card">
+    <div class="score-ring {{ r.grade }}">
+        <div class="score-inner">
+            <span class="score-number {{ r.grade }}">{{ r.score }}</span>
+        </div>
+    </div>
+    <div class="score-label {{ r.grade }}">{{ r.grade_label }}</div>
+    <div class="trade-info">{{ r.symbol }} · {{ r.direction }}</div>
+    <div class="trade-tag">{{ r.tag }}</div>
+</div>
+
+<!-- 致命错误 -->
+{% if r.fatal_errors %}
+<div class="section">
+    <div class="section-header red">
+        <span>🔴</span>
+        <h3>致命错误 (必须解决)</h3>
+    </div>
+    <div class="section-body">
+        {% for err in r.fatal_errors %}
+        <div class="fatal-item">{{ err }}</div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- 高胜率条件 -->
+{% if r.findings_green %}
+<div class="section">
+    <div class="section-header green">
+        <span>🟢</span>
+        <h3>满足的高胜率条件</h3>
+    </div>
+    <div class="section-body">
+        {% for f in r.findings_green %}
+        <div class="finding-item">
+            <span class="icon">🟢</span>
+            <span class="msg">{{ f.message }}</span>
+            <span class="pts positive">+{{ f.score_impact }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- 瑕疵/警告 -->
+{% if r.findings_yellow %}
+<div class="section">
+    <div class="section-header yellow">
+        <span>🟡</span>
+        <h3>存在的瑕疵 / 警告</h3>
+    </div>
+    <div class="section-body">
+        {% for f in r.findings_yellow %}
+        <div class="finding-item">
+            <span class="icon">🟡</span>
+            <span class="msg">{{ f.message }}</span>
+            <span class="pts negative">{{ f.score_impact }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- 严重问题 -->
+{% if r.findings_red %}
+<div class="section">
+    <div class="section-header red">
+        <span>🔴</span>
+        <h3>严重问题</h3>
+    </div>
+    <div class="section-body">
+        {% for f in r.findings_red %}
+        <div class="finding-item">
+            <span class="icon">🔴</span>
+            <span class="msg">{{ f.message }}</span>
+            <span class="pts negative">{{ f.score_impact }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- 建议 -->
+<div class="advice-box">
+    <h3>📋 建议</h3>
+    <p>{{ r.advice }}</p>
+</div>
+
+<!-- 数学期望 -->
+<div class="advice-box">
+    <h3>📊 数学期望检查</h3>
+    <p>{{ r.expectation }}</p>
+</div>
+
+<!-- 沃尔玛交易法 -->
+{% if r.walmart %}
+<div class="walmart-box">
+    <h3>💡 沃尔玛交易法 (Walmart Trade)</h3>
+    <p>设好OCO止损止盈 → 关掉行情 → 去做别的事<br>比盯盘乱操作效果更好，交易成绩更稳定</p>
+</div>
+{% endif %}
+
+<!-- 返回 -->
+<div style="text-align: center; margin-top: 24px;">
+    <a href="/" class="btn-back">← 重新筛查</a>
+</div>
+
+</div>
+
+</body>
+</html>

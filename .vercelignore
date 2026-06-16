@@ -1,0 +1,15 @@
+node_modules/
+__pycache__/
+*.pyc
+.env
+ai_config.json
+价格行为学笔记*.md
+trading_checklist_system.md
+启动指南.md
+pa_screener.py
+web_app.py
+chart_analyzer.py
+prompt_templates.py
+templates/
+static/
+.claude/

@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI读图 · 价格行为学</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
+
+/* 顶部导航 */
+.top-nav { background: linear-gradient(135deg, #161b22 0%, #1a2332 100%); border-bottom: 1px solid #30363d; padding: 16px 0; }
+.nav-inner { max-width: 820px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; }
+.nav-title { font-size: 18px; color: #f0f6fc; font-weight: 600; }
+.nav-tabs { display: flex; gap: 4px; }
+.nav-tab { padding: 8px 16px; border-radius: 6px; font-size: 13px; color: #8b949e; text-decoration: none; transition: all 0.15s; }
+.nav-tab:hover { color: #c9d1d9; background: #21262d; }
+.nav-tab.active { background: #388bfd; color: #fff; }
+
+.container { max-width: 820px; margin: 0 auto; padding: 24px 16px 60px; }
+
+/* 配置提示 */
+.config-warn {
+    background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.3); border-radius: 8px;
+    padding: 16px 20px; margin-bottom: 20px; font-size: 13px; line-height: 1.7; color: #d29922;
+}
+.config-warn code { background: #21262d; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+
+/* 截图要求卡片 */
+.req-card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 20px; overflow: hidden;
+}
+.req-card-header { padding: 14px 20px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 8px; }
+.req-card-header h3 { font-size: 14px; color: #f0f6fc; font-weight: 600; }
+.req-card-body { padding: 16px 20px; }
+.req-list { list-style: none; }
+.req-list li { font-size: 13px; line-height: 1.8; color: #8b949e; padding-left: 20px; position: relative; }
+.req-list li::before { content: "•"; position: absolute; left: 4px; color: #f0883e; }
+.req-list li strong { color: #c9d1d9; }
+
+/* 表单区域 */
+.section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+.section-header { background: #1c2333; padding: 14px 20px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 10px; }
+.section-header .step { background: #388bfd; color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.section-header h2 { font-size: 15px; color: #f0f6fc; font-weight: 600; }
+.section-body { padding: 20px; }
+
+.field { margin-bottom: 18px; }
+.field:last-child { margin-bottom: 0; }
+.field label { display: block; font-size: 13px; color: #8b949e; margin-bottom: 8px; font-weight: 500; }
+.field label .req { color: #f85149; }
+
+.text-input {
+    width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+    padding: 10px 14px; font-size: 14px; color: #c9d1d9; outline: none; transition: border-color 0.15s;
+}
+.text-input:focus { border-color: #388bfd; }
+.text-input::placeholder { color: #484f58; }
+
+.select-input {
+    width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+    padding: 10px 14px; font-size: 14px; color: #c9d1d9; outline: none; transition: border-color 0.15s;
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%238b949e'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px;
+}
+.select-input:focus { border-color: #388bfd; }
+
+/* 上传区域 */
+.upload-group { border: 1px solid #30363d; border-radius: 8px; padding: 16px; margin-bottom: 12px; position: relative; }
+.upload-group .upload-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.upload-group .upload-label { font-size: 13px; color: #8b949e; }
+.upload-group .remove-btn { background: none; border: none; color: #f85149; font-size: 12px; cursor: pointer; padding: 2px 8px; }
+.upload-group .remove-btn:hover { text-decoration: underline; }
+
+.drop-zone {
+    border: 2px dashed #30363d; border-radius: 8px; padding: 32px; text-align: center;
+    cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color: #388bfd; background: rgba(56,139,253,0.04); }
+.drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.drop-zone .dz-icon { font-size: 28px; margin-bottom: 8px; }
+.drop-zone .dz-text { font-size: 13px; color: #8b949e; }
+.drop-zone .dz-text strong { color: #388bfd; }
+
+.preview-container { display: none; margin-top: 12px; }
+.preview-container img { max-width: 100%; max-height: 200px; border-radius: 6px; border: 1px solid #30363d; }
+.preview-container .preview-info { font-size: 12px; color: #484f58; margin-top: 6px; }
+
+.add-upload-btn {
+    width: 100%; background: #21262d; border: 1px dashed #30363d; border-radius: 8px;
+    padding: 14px; text-align: center; font-size: 13px; color: #8b949e; cursor: pointer;
+    transition: all 0.15s;
+}
+.add-upload-btn:hover { border-color: #388bfd; color: #388bfd; }
+
+/* 提交按钮 */
+.submit-btn {
+    width: 100%; background: linear-gradient(135deg, #388bfd, #1f6feb); border: none; border-radius: 8px;
+    padding: 14px; font-size: 16px; font-weight: 600; color: #fff; cursor: pointer; transition: all 0.2s;
+}
+.submit-btn:hover { filter: brightness(1.1); }
+.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
+
+/* 加载动画 */
+.loading-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(13,17,23,0.85);
+    z-index: 1000; align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+}
+.loading-overlay.active { display: flex; }
+.loading-spinner { width: 48px; height: 48px; border: 3px solid #30363d; border-top-color: #388bfd; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 14px; color: #8b949e; }
+
+/* 结果区域 */
+.result-area { display: none; margin-top: 24px; }
+.result-area.active { display: block; }
+
+/* 市场概览 */
+.overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.overview-item {
+    background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; text-align: center;
+}
+.overview-item .ov-label { font-size: 11px; color: #8b949e; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.overview-item .ov-value { font-size: 15px; font-weight: 600; }
+.ov-value.bullish { color: #2ea043; }
+.ov-value.bearish { color: #f85149; }
+.ov-value.neutral { color: #d29922; }
+.ov-value.breakout { color: #a371f7; }
+.ov-value.tight { color: #2ea043; }
+.ov-value.broad { color: #d29922; }
+.ov-value.range { color: #8b949e; }
+
+/* 交易机会卡片 */
+.opp-card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 12px;
+    overflow: hidden;
+}
+.opp-header { padding: 14px 20px; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 10px; }
+.opp-direction { font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 4px; }
+.opp-direction.long { background: rgba(46,160,67,0.15); color: #2ea043; }
+.opp-direction.short { background: rgba(248,81,73,0.15); color: #f85149; }
+.opp-type { font-size: 13px; color: #c9d1d9; font-weight: 500; }
+.opp-confidence { margin-left: auto; font-size: 12px; padding: 3px 10px; border-radius: 4px; }
+.opp-confidence.high { background: rgba(46,160,67,0.12); color: #2ea043; }
+.opp-confidence.medium { background: rgba(210,153,34,0.12); color: #d29922; }
+.opp-confidence.low { background: rgba(248,81,73,0.12); color: #f85149; }
+
+.opp-body { padding: 16px 20px; }
+.opp-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin-bottom: 12px; }
+.opp-detail-item { }
+.opp-detail-label { font-size: 11px; color: #8b949e; margin-bottom: 2px; }
+.opp-detail-value { font-size: 13px; color: #c9d1d9; }
+.opp-reasoning { font-size: 13px; line-height: 1.7; color: #8b949e; padding: 12px; background: #0d1117; border-radius: 6px; }
+
+/* 警告区 */
+.warn-list { list-style: none; }
+.warn-list li { background: rgba(210,153,34,0.06); border: 1px solid rgba(210,153,34,0.2); border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; font-size: 13px; color: #d29922; line-height: 1.6; }
+
+/* 摘要区 */
+.summary-box { background: #1c2333; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+.summary-box h3 { font-size: 14px; color: #f0f6fc; margin-bottom: 10px; font-weight: 600; }
+.summary-box p { font-size: 13px; line-height: 1.8; color: #c9d1d9; white-space: pre-line; }
+
+/* 错误提示 */
+.error-box { background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.2); border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+.error-box h3 { font-size: 14px; color: #f85149; margin-bottom: 6px; }
+.error-box p { font-size: 13px; color: #ffa198; line-height: 1.6; }
+
+/* 原始返回折叠 */
+.raw-toggle { background: #21262d; border: 1px solid #30363d; border-radius: 6px; padding: 10px 20px; font-size: 13px; color: #8b949e; cursor: pointer; width: 100%; text-align: left; margin-top: 16px; }
+.raw-toggle:hover { background: #30363d; }
+.raw-content { display: none; margin-top: 8px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 16px; font-size: 12px; color: #8b949e; line-height: 1.6; white-space: pre-wrap; word-break: break-all; max-height: 400px; overflow-y: auto; }
+.raw-content.open { display: block; }
+
+/* 返回按钮 */
+.btn-back { display: inline-block; background: #21262d; border: 1px solid #30363d; border-radius: 6px; padding: 10px 24px; color: #c9d1d9; text-decoration: none; font-size: 14px; transition: all 0.15s; }
+.btn-back:hover { background: #30363d; }
+
+.no-opp { text-align: center; padding: 32px 20px; color: #8b949e; font-size: 14px; }
+
+@media (max-width: 600px) {
+    .nav-inner { flex-direction: column; gap: 12px; }
+    .opp-detail { grid-template-columns: 1fr; }
+    .overview-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- 导航 -->
+<div class="top-nav">
+    <div class="nav-inner">
+        <div class="nav-title">价格行为学 · 交易分析系统</div>
+        <div class="nav-tabs">
+            <a href="/" class="nav-tab">手动筛查</a>
+            <a href="/analyze" class="nav-tab active">AI读图</a>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+
+<!-- 截图要求 -->
+<div class="req-card">
+    <div class="req-card-header">
+        <span>📷</span>
+        <h3>截图要求</h3>
+    </div>
+    <div class="req-card-body">
+        <ul class="req-list">
+            <li><strong>最少60根K线</strong>，推荐100~200根（AI需要看到完整的市场周期结构）</li>
+            <li>截图中必须显示 <strong>EMA20均线</strong></li>
+            <li>上传时标注每张截图的<strong>时间级别</strong>（5分钟/15分钟/1小时/4小时/日线/周线）</li>
+            <li>推荐上传 <strong>2~3个时间级别</strong>（如：1张日线 + 1张4小时 + 1张15分钟），实现多周期共振分析</li>
+            <li>截图需<strong>清晰可见</strong> K线实体和影线，避免模糊或截断</li>
+            <li>建议在 <strong>TradingView</strong> 等平台截图，保留完整的价格标尺</li>
+        </ul>
+    </div>
+</div>
+
+<!-- 基本信息 -->
+<div class="section">
+    <div class="section-header">
+        <span class="step">1</span>
+        <h2>基本信息</h2>
+    </div>
+    <div class="section-body">
+        <div class="field">
+            <label>标的代码 <span class="req">*</span></label>
+            <input type="text" id="symbol" class="text-input" placeholder="如 ES、BTC、AAPL" required>
+        </div>
+        <div class="field">
+            <label>AI模型</label>
+            <select id="aiProvider" class="select-input" onchange="onProviderChange()">
+                <option value="openai">OpenAI (GPT-4o / GPT-4.1)</option>
+                <option value="claude">Anthropic (Claude)</option>
+                <option value="zhipu">智谱 (GLM-4V)</option>
+                <option value="qwen">通义千问 (Qwen-VL)</option>
+                <option value="deepseek">DeepSeek</option>
+                <option value="custom">自定义 (OpenAI兼容)</option>
+            </select>
+        </div>
+        <div class="field" id="apiKeyField">
+            <label>API Key <span class="req">*</span> <span style="font-size:11px;color:#6e7681;">（仅存于浏览器本地，不会上传到服务器）</span></label>
+            <input type="password" id="apiKey" class="text-input" placeholder="sk-..." style="max-width:400px;">
+        </div>
+        <div class="field" id="baseUrlField" style="display:none;">
+            <label>API Base URL</label>
+            <input type="text" id="baseUrl" class="text-input" placeholder="https://api.openai.com/v1" style="max-width:400px;">
+        </div>
+        <div class="field" id="modelField" style="display:none;">
+            <label>模型名称</label>
+            <input type="text" id="customModel" class="text-input" placeholder="gpt-4o" style="max-width:300px;">
+        </div>
+    </div>
+</div>
+
+<!-- 截图上传 -->
+<div class="section">
+    <div class="section-header">
+        <span class="step">2</span>
+        <h2>上传K线截图</h2>
+    </div>
+    <div class="section-body">
+        <div id="uploadList">
+            <!-- 第一张图（必填） -->
+            <div class="upload-group" data-index="0">
+                <div class="upload-header">
+                    <span class="upload-label">截图 1 <span style="color:#f85149;">*</span></span>
+                </div>
+                <div class="field">
+                    <label>时间级别</label>
+                    <select class="select-input timeframe-select">
+                        <option value="5min">5分钟</option>
+                        <option value="15min">15分钟</option>
+                        <option value="1h" selected>1小时</option>
+                        <option value="4h">4小时</option>
+                        <option value="daily">日线</option>
+                        <option value="weekly">周线</option>
+                    </select>
+                </div>
+                <div class="drop-zone" onclick="this.querySelector('input').click()">
+                    <input type="file" accept="image/*" onchange="handleFileSelect(this, 0)">
+                    <div class="dz-icon">📁</div>
+                    <div class="dz-text">拖拽图片到此处或 <strong>点击选择</strong></div>
+                </div>
+                <div class="preview-container" id="preview0">
+                    <img id="img0" src="" alt="预览">
+                    <div class="preview-info" id="info0"></div>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" class="add-upload-btn" id="addUploadBtn" onclick="addUploadSlot()">
+            + 添加更多时间级别的截图
+        </button>
+    </div>
+</div>
+
+<!-- 提交 -->
+<button type="button" class="submit-btn" id="analyzeBtn" onclick="startAnalysis()">
+    🔍 开始AI分析
+</button>
+
+<!-- 加载遮罩 -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">AI正在分析K线图，请稍候（通常需要30~60秒）...</div>
+</div>
+
+<!-- 结果区域 -->
+<div class="result-area" id="resultArea">
+
+    <!-- 错误 -->
+    <div class="error-box" id="errorBox" style="display:none;">
+        <h3>❌ 分析失败</h3>
+        <p id="errorMsg"></p>
+    </div>
+
+    <!-- 市场概览 -->
+    <div class="overview-grid" id="overviewGrid"></div>
+
+    <!-- 摘要 -->
+    <div class="summary-box" id="summaryBox" style="display:none;">
+        <h3>📋 整体分析</h3>
+        <p id="summaryText"></p>
+    </div>
+
+    <!-- 交易机会 -->
+    <div id="oppSection" style="display:none;">
+        <div class="section">
+            <div class="section-header">
+                <span>🎯</span>
+                <h2>交易机会</h2>
+            </div>
+            <div class="section-body" id="oppList"></div>
+        </div>
+    </div>
+
+    <!-- 风险警告 -->
+    <div id="warnSection" style="display:none;">
+        <div class="section">
+            <div class="section-header" style="background:rgba(210,153,34,0.08);">
+                <span>⚠️</span>
+                <h2 style="color:#d29922;">风险警告</h2>
+            </div>
+            <div class="section-body">
+                <ul class="warn-list" id="warnList"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 原始返回 -->
+    <button type="button" class="raw-toggle" onclick="toggleRaw()">▶ 查看AI原始返回</button>
+    <div class="raw-content" id="rawContent"></div>
+
+    <!-- 返回 -->
+    <div style="text-align: center; margin-top: 24px;">
+        <a href="/analyze" class="btn-back">← 重新分析</a>
+    </div>
+</div>
+
+</div>
+
+<script>
+// 上传状态
+let uploadSlots = [null];
+let slotCount = 1;
+const MAX_SLOTS = 3;
+
+// API Key 存到 localStorage
+const LS_KEY = 'pa_api_config';
+function loadSavedConfig() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+        if (saved.provider) document.getElementById('aiProvider').value = saved.provider;
+        if (saved.apiKey) document.getElementById('apiKey').value = saved.apiKey;
+        if (saved.baseUrl) document.getElementById('baseUrl').value = saved.baseUrl;
+        if (saved.customModel) document.getElementById('customModel').value = saved.customModel;
+        onProviderChange();
+    } catch(e) {}
+}
+function saveConfig() {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+        provider: document.getElementById('aiProvider').value,
+        apiKey: document.getElementById('apiKey').value,
+        baseUrl: document.getElementById('baseUrl').value,
+        customModel: document.getElementById('customModel').value,
+    }));
+}
+
+const PROVIDER_DEFAULTS = {
+    openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o' },
+    claude: { baseUrl: 'https://api.anthropic.com/v1', model: 'claude-sonnet-4-20250514' },
+    zhipu: { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4v-plus' },
+    qwen: { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-vl-max' },
+    deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+    custom: { baseUrl: '', model: '' },
+};
+
+function onProviderChange() {
+    const p = document.getElementById('aiProvider').value;
+    const defaults = PROVIDER_DEFAULTS[p] || {};
+    const isCustom = p === 'custom';
+
+    document.getElementById('baseUrlField').style.display = isCustom ? 'block' : 'none';
+    document.getElementById('modelField').style.display = isCustom ? 'block' : 'none';
+
+    if (isCustom && !document.getElementById('baseUrl').value) {
+        document.getElementById('baseUrl').value = defaults.baseUrl;
+        document.getElementById('customModel').value = defaults.model;
+    }
+}
+
+function handleFileSelect(input, index) {
+    const file = input.files[0];
+    if (!file) return;
+
+    uploadSlots[index] = uploadSlots[index] || {};
+    uploadSlots[index].file = file;
+
+    const preview = document.getElementById('preview' + index);
+    const img = document.getElementById('img' + index);
+    const info = document.getElementById('info' + index);
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        img.src = e.target.result;
+        preview.style.display = 'block';
+        info.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+    };
+    reader.readAsDataURL(file);
+
+    input.closest('.drop-zone').style.display = 'none';
+}
+
+function addUploadSlot() {
+    if (slotCount >= MAX_SLOTS) return;
+    const list = document.getElementById('uploadList');
+    const idx = slotCount;
+    uploadSlots.push(null);
+    slotCount++;
+
+    const tfOptions = [
+        { value: '5min', label: '5分钟' }, { value: '15min', label: '15分钟' },
+        { value: '1h', label: '1小时' }, { value: '4h', label: '4小时' },
+        { value: 'daily', label: '日线' }, { value: 'weekly', label: '周线' },
+    ];
+    const tfHtml = tfOptions.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+
+    list.insertAdjacentHTML('beforeend', `
+    <div class="upload-group" data-index="${idx}">
+        <div class="upload-header">
+            <span class="upload-label">截图 ${idx + 1}</span>
+            <button type="button" class="remove-btn" onclick="removeUploadSlot(${idx})">移除</button>
+        </div>
+        <div class="field">
+            <label>时间级别</label>
+            <select class="select-input timeframe-select">${tfHtml}</select>
+        </div>
+        <div class="drop-zone" onclick="this.querySelector('input').click()">
+            <input type="file" accept="image/*" onchange="handleFileSelect(this, ${idx})">
+            <div class="dz-icon">📁</div>
+            <div class="dz-text">拖拽图片到此处或 <strong>点击选择</strong></div>
+        </div>
+        <div class="preview-container" id="preview${idx}">
+            <img id="img${idx}" src="" alt="预览">
+            <div class="preview-info" id="info${idx}"></div>
+        </div>
+    </div>`);
+
+    if (slotCount >= MAX_SLOTS) document.getElementById('addUploadBtn').style.display = 'none';
+}
+
+function removeUploadSlot(idx) {
+    const el = document.querySelector(`.upload-group[data-index="${idx}"]`);
+    if (el) el.remove();
+    uploadSlots[idx] = null;
+    slotCount--;
+    if (slotCount < MAX_SLOTS) document.getElementById('addUploadBtn').style.display = 'block';
+}
+
+// ═══ 读取图片为base64 ═══
+function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const dataUrl = reader.result;
+            const base64 = dataUrl.split(',')[1];
+            const mime = file.type || 'image/png';
+            resolve({ base64, mime });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// ═══ AI提示词（内嵌，前端直调时需要） ═══
+const SYSTEM_PROMPT = `你是一位精通Al Brooks价格行为学(Price Action)的专业交易分析师。你的任务是根据交易者上传的K线截图，运用价格行为学的核心理论进行客观分析，识别高胜率的交易机会。
+
+你必须严格遵循以下价格行为学知识体系进行分析，不得偏离或编造规则：
+
+## 一、市场周期四阶段
+1. 突破(Breakout)：力量最强，Always In模式，只能顺势。
+2. 窄通道(Tight Channel)：回调极微弱(1~3根K线)，Always In强趋势，第一次反转80%失败。
+3. 宽通道(Broad Channel)：K线高度重叠，75%概率被反向突破，宽涨通道=熊旗。
+4. 震荡区间(Trading Range)：三等分操作，80%突破失败。
+
+## 二、EMA20与均线缺口
+价格在EMA20上方=多头，下方=空头。均线缺口(MAG)代表趋势极强。反转尝试需连续K线收在均线另一侧。
+
+## 三、80/20规则
+震荡区间80%突破失败，趋势行情80%反转失败。
+
+## 四、信号K线
+趋势K线(大实体)是极佳信号K。震荡K线(十字星)无方向性。Context永远大于信号K。入场用Stop Order。
+
+## 五、计数K线 H1/H2/L1/L2
+H2/L2是黄金入场点，胜率极高。H3/L3需配合高重叠好楔形。
+
+## 六、好楔形vs坏楔形
+好楔形：高重叠深回撤，反转概率75%。坏楔形：窄通道式无重叠，本质是强趋势，不可逆势。
+
+## 七、止损铁律
+必须Stop Market，不可Stop Limit。臭止损：区间极端1/3位置斩仓。单笔风险≤1~2%。
+
+## 八、目标位
+Measured Move(区间翻倍/Leg1=Leg2/突破K实体翻倍)。2R盈亏比+40%胜率=稳定盈利。Smart Trade分批止盈。
+
+## 九、三推离场
+第三推必须减仓。楔形失败后走1~2倍测量运动。
+
+## 十、第二段陷阱
+区间内第二段100%陷阱，不加仓。多周期共振提升胜率。`;
+
+function buildAnalysisPrompt(symbol, timeframeInfo) {
+    return `请对上传的K线截图进行价格行为学分析。
+
+## 截图信息
+- 标的：${symbol}
+- 时间级别：${timeframeInfo}
+
+## 分析要求
+
+请严格按照以下框架逐步分析，每一步都必须给出明确判断和依据：
+
+### 第1步：市场环境识别
+- 当前处于市场周期四阶段中的哪个阶段？
+- 价格在EMA20上方还是下方？
+- 是否存在均线缺口(MAG)？大约多少根K线未触碰EMA20？
+- 当前行情走了几推？
+
+### 第2步：趋势方向判断
+- 大趋势方向（多头/空头/震荡）？
+- 多周期是否共振？
+
+### 第3步：交易机会识别
+只指出较高胜率的交易机会，必须满足至少一项：顺势、H2/L2、H3/L3+好楔形、区间高抛低吸、多周期共振。
+绝对不推荐：窄通道逆势、区间追第二段、坏楔形逆势、无信号K入场。
+
+### 第4步：对每个交易机会给出具体方案
+方向、入场类型、入场描述、信号K质量(0-100)、止损、目标位、盈亏比、置信度(high/medium/low)
+
+### 第5步：风险警告
+
+## 输出格式
+请用以下JSON格式输出（不要用markdown代码块包裹）：
+
+{"market_phase":"breakout|tight_channel|broad_channel|trading_range","ema20_position":"above|below|crossing","trend_direction":"bullish|bearish|neutral","gap_exists":true,"gap_bars":0,"push_count":0,"opportunities":[{"direction":"long|short","entry_type":"H1|H2|H3|L1|L2|L3|range_buy|range_sell|breakout","entry_description":"描述","signal_k_quality":0,"stop_loss":"描述","target":"描述","rr_ratio":0.0,"confidence":"high|medium|low","reasoning":"推理"}],"warnings":["警告"],"summary":"总结"}`;
+}
+
+// ═══ 前端直调AI API ═══
+async function callAI(provider, apiKey, baseUrl, model, images, symbol, timeframes) {
+    const timeframeInfo = timeframes.join('、');
+    const userPrompt = buildAnalysisPrompt(symbol, timeframeInfo);
+
+    // 构建图片内容
+    const imageContents = images.map(img => ({
+        type: "image_url",
+        image_url: { url: `data:${img.mime};base64,${img.base64}` }
+    }));
+
+    if (provider === 'claude') {
+        // Claude API
+        const claudeImages = images.map(img => ({
+            type: "image",
+            source: { type: "base64", media_type: img.mime, data: img.base64 }
+        }));
+
+        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: model,
+                max_tokens: 4096,
+                system: SYSTEM_PROMPT,
+                messages: [{ role: 'user', content: [...claudeImages, { type: 'text', text: userPrompt }] }],
+            }),
+        });
+        if (!resp.ok) {
+            const err = await resp.text();
+            throw new Error(`Claude API错误 (${resp.status}): ${err}`);
+        }
+        const data = await resp.json();
+        return data.content[0].text;
+    } else {
+        // OpenAI兼容格式（OpenAI / 智谱 / 通义 / DeepSeek / 自定义）
+        const url = baseUrl.replace(/\/+$/, '') + '/chat/completions';
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: model,
+                messages: [
+                    { role: 'system', content: SYSTEM_PROMPT },
+                    { role: 'user', content: [{ type: 'text', text: userPrompt }, ...imageContents] },
+                ],
+                max_tokens: 4096,
+            }),
+        });
+        if (!resp.ok) {
+            const err = await resp.text();
+            throw new Error(`API错误 (${resp.status}): ${err}`);
+        }
+        const data = await resp.json();
+        return data.choices[0].message.content;
+    }
+}
+
+function parseResponse(raw) {
+    const result = {
+        market_phase: 'unknown', ema20_position: 'unknown', trend_direction: 'unknown',
+        gap_exists: false, gap_bars: 0, push_count: 0,
+        opportunities: [], warnings: [], summary: '', raw_response: raw,
+    };
+
+    let jsonStr = raw.trim();
+    if (jsonStr.startsWith('```')) {
+        const lines = jsonStr.split('\n');
+        jsonStr = lines.slice(1, lines[-1]?.trim() === '```' ? -1 : undefined).join('\n');
+    }
+
+    try {
+        const parsed = JSON.parse(jsonStr);
+        for (const key of ['market_phase','ema20_position','trend_direction','gap_exists','gap_bars','push_count','opportunities','warnings','summary']) {
+            if (key in parsed) result[key] = parsed[key];
+        }
+    } catch {
+        result.summary = raw.substring(0, 500);
+        result.warnings = ['AI返回格式异常，以下为原始分析文本'];
+    }
+    return result;
+}
+
+// ═══ 主分析流程 ═══
+async function startAnalysis() {
+    const symbol = document.getElementById('symbol').value.trim();
+    if (!symbol) { alert('请输入标的代码'); return; }
+
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if (!apiKey) { alert('请输入API Key'); return; }
+
+    const validSlots = uploadSlots.filter(s => s && s.file);
+    if (validSlots.length === 0) { alert('请至少上传一张K线截图'); return; }
+
+    const provider = document.getElementById('aiProvider').value;
+    const defaults = PROVIDER_DEFAULTS[provider] || {};
+    const baseUrl = document.getElementById('baseUrl').value.trim() || defaults.baseUrl;
+    const model = document.getElementById('customModel').value.trim() || defaults.model;
+
+    if (!baseUrl) { alert('请填写API Base URL'); return; }
+    if (!model) { alert('请填写模型名称'); return; }
+
+    saveConfig();
+
+    // 读取图片
+    const tfSelects = document.querySelectorAll('.timeframe-select');
+    const imageData = [];
+    const timeframes = [];
+    let slotIdx = 0;
+    for (let i = 0; i < uploadSlots.length; i++) {
+        if (uploadSlots[i] && uploadSlots[i].file) {
+            const { base64, mime } = await readFileAsBase64(uploadSlots[i].file);
+            imageData.push({ base64, mime });
+            timeframes.push(tfSelects[slotIdx]?.value || '1h');
+            slotIdx++;
+        }
+    }
+
+    document.getElementById('loadingOverlay').classList.add('active');
+    document.getElementById('resultArea').classList.remove('active');
+    document.getElementById('errorBox').style.display = 'none';
+
+    try {
+        const raw = await callAI(provider, apiKey, baseUrl, model, imageData, symbol, timeframes);
+        const result = parseResponse(raw);
+        showResult(result);
+    } catch (e) {
+        showResult({ error: e.message, opportunities: [], warnings: [], raw_response: e.message });
+    } finally {
+        document.getElementById('loadingOverlay').classList.remove('active');
+    }
+}
+
+function showResult(r) {
+    const area = document.getElementById('resultArea');
+    area.classList.add('active');
+
+    if (r.error) {
+        document.getElementById('errorBox').style.display = 'block';
+        document.getElementById('errorMsg').textContent = r.error;
+    } else {
+        document.getElementById('errorBox').style.display = 'none';
+    }
+
+    const phaseMap = { breakout: '突破', tight_channel: '窄通道', broad_channel: '宽通道', trading_range: '震荡区间' };
+    const posMap = { above: 'EMA20上方', below: 'EMA20下方', crossing: '穿越EMA20' };
+    const dirMap = { bullish: '多头', bearish: '空头', neutral: '震荡' };
+
+    document.getElementById('overviewGrid').innerHTML = `
+        <div class="overview-item"><div class="ov-label">市场周期</div><div class="ov-value ${r.market_phase==='breakout'?'breakout':r.market_phase==='tight_channel'?'tight':r.market_phase==='broad_channel'?'broad':'range'}">${phaseMap[r.market_phase]||r.market_phase||'—'}</div></div>
+        <div class="overview-item"><div class="ov-label">EMA20位置</div><div class="ov-value ${r.ema20_position==='above'?'bullish':r.ema20_position==='below'?'bearish':'neutral'}">${posMap[r.ema20_position]||r.ema20_position||'—'}</div></div>
+        <div class="overview-item"><div class="ov-label">趋势方向</div><div class="ov-value ${r.trend_direction==='bullish'?'bullish':r.trend_direction==='bearish'?'bearish':'neutral'}">${dirMap[r.trend_direction]||r.trend_direction||'—'}</div></div>
+        <div class="overview-item"><div class="ov-label">均线缺口</div><div class="ov-value ${r.gap_exists?'bullish':'neutral'}">${r.gap_exists?'存在'+(r.gap_bars?' ('+r.gap_bars+'根K线)':''):'无'}</div></div>
+        <div class="overview-item"><div class="ov-label">推数</div><div class="ov-value">${r.push_count||'—'}</div></div>
+    `;
+
+    if (r.summary) {
+        document.getElementById('summaryBox').style.display = 'block';
+        document.getElementById('summaryText').textContent = r.summary;
+    }
+
+    const oppSection = document.getElementById('oppSection');
+    const oppList = document.getElementById('oppList');
+    if (r.opportunities && r.opportunities.length > 0) {
+        oppSection.style.display = 'block';
+        oppList.innerHTML = r.opportunities.map(o => {
+            const dirLabel = o.direction === 'long' ? '做多' : '做空';
+            const confLabel = {high:'高置信',medium:'中置信',low:'低置信'}[o.confidence]||o.confidence;
+            return `<div class="opp-card">
+                <div class="opp-header">
+                    <span class="opp-direction ${o.direction}">${dirLabel}</span>
+                    <span class="opp-type">${o.entry_type||''}</span>
+                    <span class="opp-confidence ${o.confidence}">${confLabel}</span>
+                </div>
+                <div class="opp-body">
+                    <div class="opp-detail">
+                        <div class="opp-detail-item"><div class="opp-detail-label">信号K质量</div><div class="opp-detail-value">${o.signal_k_quality!==undefined?o.signal_k_quality+'/100':'—'}</div></div>
+                        <div class="opp-detail-item"><div class="opp-detail-label">盈亏比</div><div class="opp-detail-value">${o.rr_ratio?o.rr_ratio+':1':'—'}</div></div>
+                        <div class="opp-detail-item"><div class="opp-detail-label">止损</div><div class="opp-detail-value">${o.stop_loss||'—'}</div></div>
+                        <div class="opp-detail-item"><div class="opp-detail-label">目标位</div><div class="opp-detail-value">${o.target||'—'}</div></div>
+                    </div>
+                    <div class="opp-detail-item" style="margin-bottom:8px;"><div class="opp-detail-label">入场描述</div><div class="opp-detail-value">${o.entry_description||'—'}</div></div>
+                    ${o.reasoning?'<div class="opp-reasoning">'+escHtml(o.reasoning)+'</div>':''}
+                </div></div>`;
+        }).join('');
+    } else {
+        oppSection.style.display = 'block';
+        oppList.innerHTML = '<div class="no-opp">未发现高胜率交易机会<br>当前市场环境不建议开仓</div>';
+    }
+
+    const warnSection = document.getElementById('warnSection');
+    if (r.warnings && r.warnings.length > 0) {
+        warnSection.style.display = 'block';
+        document.getElementById('warnList').innerHTML = r.warnings.map(w => `<li>${escHtml(w)}</li>`).join('');
+    } else { warnSection.style.display = 'none'; }
+
+    if (r.raw_response) document.getElementById('rawContent').textContent = r.raw_response;
+    area.scrollIntoView({ behavior: 'smooth' });
+}
+
+function toggleRaw() { document.getElementById('rawContent').classList.toggle('open'); }
+
+function escHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// 初始化
+loadSavedConfig();
+</script>
+
+</body>
+</html>
