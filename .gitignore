@@ -3,3 +3,5 @@ __pycache__/
 .env
 ai_config.json
 .claude/
+
+.vercel

@@ -1,6 +1,6 @@
 """
 Vercel Serverless Function 入口
-路由: /api/screen, /api/references, /api/config
+路由: /api/screen, /api/references, /api/config, /api/analyze
 """
 
 import os
@@ -15,6 +15,7 @@ from flask import Flask, request, jsonify
 from engine import ScreeningEngine
 from references import REFERENCES
 from config import AI_PROVIDER, is_configured, PROVIDERS
+from chart_analyzer import ChartAnalyzer
 
 app = Flask(__name__)
 
@@ -51,5 +52,53 @@ def config():
         "configured": is_configured(),
         "provider_name": PROVIDERS.get(AI_PROVIDER, {}).get("name", AI_PROVIDER),
     })
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
+
+
+@app.route("/api/analyze", methods=["POST", "OPTIONS"])
+def analyze():
+    if request.method == "OPTIONS":
+        resp = jsonify()
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        return resp
+
+    symbol = request.form.get("symbol", "").strip()
+    provider = request.form.get("provider", AI_PROVIDER)
+    timeframes = request.form.getlist("timeframes")
+
+    if not symbol:
+        resp = jsonify({"error": "请输入标的代码", "opportunities": [], "warnings": []})
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        return resp
+
+    # 读取上传的图片
+    image_data = []
+    files = request.files.getlist("images")
+    for f in files:
+        content = f.read()
+        if content:
+            mime = f.content_type or "image/png"
+            image_data.append((content, mime))
+
+    if not image_data:
+        resp = jsonify({"error": "请至少上传一张K线截图", "opportunities": [], "warnings": []})
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        return resp
+
+    # 临时切换 provider
+    import config
+    original_provider = config.AI_PROVIDER
+    config.AI_PROVIDER = provider
+
+    try:
+        analyzer = ChartAnalyzer()
+        result = analyzer.analyze(image_data, timeframes, symbol)
+    finally:
+        config.AI_PROVIDER = original_provider
+
+    resp = jsonify(result)
     resp.headers["Access-Control-Allow-Origin"] = "*"
     return resp

@@ -19,12 +19,13 @@ body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; ba
 
 .container { max-width: 820px; margin: 0 auto; padding: 24px 16px 60px; }
 
-/* 配置提示 */
-.config-warn {
-    background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.3); border-radius: 8px;
-    padding: 16px 20px; margin-bottom: 20px; font-size: 13px; line-height: 1.7; color: #d29922;
+/* 配置状态提示 */
+.config-status {
+    border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; font-size: 13px; line-height: 1.7;
 }
-.config-warn code { background: #21262d; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+.config-status.ok { background: rgba(46,160,67,0.08); border: 1px solid rgba(46,160,67,0.3); color: #2ea043; }
+.config-status.warn { background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.3); color: #d29922; }
+.config-status code { background: #21262d; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
 
 /* 截图要求卡片 */
 .req-card {
@@ -201,6 +202,9 @@ body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; ba
 
 <div class="container">
 
+<!-- 配置状态 -->
+<div id="configStatus" class="config-status warn">正在检查AI配置...</div>
+
 <!-- 截图要求 -->
 <div class="req-card">
     <div class="req-card-header">
@@ -232,26 +236,13 @@ body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; ba
         </div>
         <div class="field">
             <label>AI模型</label>
-            <select id="aiProvider" class="select-input" onchange="onProviderChange()">
+            <select id="aiProvider" class="select-input">
                 <option value="openai">OpenAI (GPT-4o / GPT-4.1)</option>
                 <option value="claude">Anthropic (Claude)</option>
                 <option value="zhipu">智谱 (GLM-4V)</option>
                 <option value="qwen">通义千问 (Qwen-VL)</option>
                 <option value="deepseek">DeepSeek</option>
-                <option value="custom">自定义 (OpenAI兼容)</option>
             </select>
-        </div>
-        <div class="field" id="apiKeyField">
-            <label>API Key <span class="req">*</span> <span style="font-size:11px;color:#6e7681;">（仅存于浏览器本地，不会上传到服务器）</span></label>
-            <input type="password" id="apiKey" class="text-input" placeholder="sk-..." style="max-width:400px;">
-        </div>
-        <div class="field" id="baseUrlField" style="display:none;">
-            <label>API Base URL</label>
-            <input type="text" id="baseUrl" class="text-input" placeholder="https://api.openai.com/v1" style="max-width:400px;">
-        </div>
-        <div class="field" id="modelField" style="display:none;">
-            <label>模型名称</label>
-            <input type="text" id="customModel" class="text-input" placeholder="gpt-4o" style="max-width:300px;">
         </div>
     </div>
 </div>
@@ -369,47 +360,22 @@ let uploadSlots = [null];
 let slotCount = 1;
 const MAX_SLOTS = 3;
 
-// API Key 存到 localStorage
-const LS_KEY = 'pa_api_config';
-function loadSavedConfig() {
+// 检查后端 AI 配置状态
+async function checkConfig() {
+    const statusEl = document.getElementById('configStatus');
     try {
-        const saved = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
-        if (saved.provider) document.getElementById('aiProvider').value = saved.provider;
-        if (saved.apiKey) document.getElementById('apiKey').value = saved.apiKey;
-        if (saved.baseUrl) document.getElementById('baseUrl').value = saved.baseUrl;
-        if (saved.customModel) document.getElementById('customModel').value = saved.customModel;
-        onProviderChange();
-    } catch(e) {}
-}
-function saveConfig() {
-    localStorage.setItem(LS_KEY, JSON.stringify({
-        provider: document.getElementById('aiProvider').value,
-        apiKey: document.getElementById('apiKey').value,
-        baseUrl: document.getElementById('baseUrl').value,
-        customModel: document.getElementById('customModel').value,
-    }));
-}
-
-const PROVIDER_DEFAULTS = {
-    openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o' },
-    claude: { baseUrl: 'https://api.anthropic.com/v1', model: 'claude-sonnet-4-20250514' },
-    zhipu: { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4v-plus' },
-    qwen: { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-vl-max' },
-    deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
-    custom: { baseUrl: '', model: '' },
-};
-
-function onProviderChange() {
-    const p = document.getElementById('aiProvider').value;
-    const defaults = PROVIDER_DEFAULTS[p] || {};
-    const isCustom = p === 'custom';
-
-    document.getElementById('baseUrlField').style.display = isCustom ? 'block' : 'none';
-    document.getElementById('modelField').style.display = isCustom ? 'block' : 'none';
-
-    if (isCustom && !document.getElementById('baseUrl').value) {
-        document.getElementById('baseUrl').value = defaults.baseUrl;
-        document.getElementById('customModel').value = defaults.model;
+        const resp = await fetch('/api/config');
+        const cfg = await resp.json();
+        if (cfg.configured) {
+            statusEl.className = 'config-status ok';
+            statusEl.textContent = '✅ AI模型已配置：' + (cfg.provider_name || cfg.provider);
+        } else {
+            statusEl.className = 'config-status warn';
+            statusEl.innerHTML = '⚠️ 当前AI模型（' + (cfg.provider_name || cfg.provider) + '）未配置API Key。请编辑 <code>ai_config.json</code> 或设置环境变量。';
+        }
+    } catch (e) {
+        statusEl.className = 'config-status warn';
+        statusEl.textContent = '⚠️ 无法检查AI配置状态，请确保后端服务正常运行。';
     }
 }
 
@@ -481,216 +447,27 @@ function removeUploadSlot(idx) {
     if (slotCount < MAX_SLOTS) document.getElementById('addUploadBtn').style.display = 'block';
 }
 
-// ═══ 读取图片为base64 ═══
-function readFileAsBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-            const dataUrl = reader.result;
-            const base64 = dataUrl.split(',')[1];
-            const mime = file.type || 'image/png';
-            resolve({ base64, mime });
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
-}
-
-// ═══ AI提示词（内嵌，前端直调时需要） ═══
-const SYSTEM_PROMPT = `你是一位精通Al Brooks价格行为学(Price Action)的专业交易分析师。你的任务是根据交易者上传的K线截图，运用价格行为学的核心理论进行客观分析，识别高胜率的交易机会。
-
-你必须严格遵循以下价格行为学知识体系进行分析，不得偏离或编造规则：
-
-## 一、市场周期四阶段
-1. 突破(Breakout)：力量最强，Always In模式，只能顺势。
-2. 窄通道(Tight Channel)：回调极微弱(1~3根K线)，Always In强趋势，第一次反转80%失败。
-3. 宽通道(Broad Channel)：K线高度重叠，75%概率被反向突破，宽涨通道=熊旗。
-4. 震荡区间(Trading Range)：三等分操作，80%突破失败。
-
-## 二、EMA20与均线缺口
-价格在EMA20上方=多头，下方=空头。均线缺口(MAG)代表趋势极强。反转尝试需连续K线收在均线另一侧。
-
-## 三、80/20规则
-震荡区间80%突破失败，趋势行情80%反转失败。
-
-## 四、信号K线
-趋势K线(大实体)是极佳信号K。震荡K线(十字星)无方向性。Context永远大于信号K。入场用Stop Order。
-
-## 五、计数K线 H1/H2/L1/L2
-H2/L2是黄金入场点，胜率极高。H3/L3需配合高重叠好楔形。
-
-## 六、好楔形vs坏楔形
-好楔形：高重叠深回撤，反转概率75%。坏楔形：窄通道式无重叠，本质是强趋势，不可逆势。
-
-## 七、止损铁律
-必须Stop Market，不可Stop Limit。臭止损：区间极端1/3位置斩仓。单笔风险≤1~2%。
-
-## 八、目标位
-Measured Move(区间翻倍/Leg1=Leg2/突破K实体翻倍)。2R盈亏比+40%胜率=稳定盈利。Smart Trade分批止盈。
-
-## 九、三推离场
-第三推必须减仓。楔形失败后走1~2倍测量运动。
-
-## 十、第二段陷阱
-区间内第二段100%陷阱，不加仓。多周期共振提升胜率。`;
-
-function buildAnalysisPrompt(symbol, timeframeInfo) {
-    return `请对上传的K线截图进行价格行为学分析。
-
-## 截图信息
-- 标的：${symbol}
-- 时间级别：${timeframeInfo}
-
-## 分析要求
-
-请严格按照以下框架逐步分析，每一步都必须给出明确判断和依据：
-
-### 第1步：市场环境识别
-- 当前处于市场周期四阶段中的哪个阶段？
-- 价格在EMA20上方还是下方？
-- 是否存在均线缺口(MAG)？大约多少根K线未触碰EMA20？
-- 当前行情走了几推？
-
-### 第2步：趋势方向判断
-- 大趋势方向（多头/空头/震荡）？
-- 多周期是否共振？
-
-### 第3步：交易机会识别
-只指出较高胜率的交易机会，必须满足至少一项：顺势、H2/L2、H3/L3+好楔形、区间高抛低吸、多周期共振。
-绝对不推荐：窄通道逆势、区间追第二段、坏楔形逆势、无信号K入场。
-
-### 第4步：对每个交易机会给出具体方案
-方向、入场类型、入场描述、信号K质量(0-100)、止损、目标位、盈亏比、置信度(high/medium/low)
-
-### 第5步：风险警告
-
-## 输出格式
-请用以下JSON格式输出（不要用markdown代码块包裹）：
-
-{"market_phase":"breakout|tight_channel|broad_channel|trading_range","ema20_position":"above|below|crossing","trend_direction":"bullish|bearish|neutral","gap_exists":true,"gap_bars":0,"push_count":0,"opportunities":[{"direction":"long|short","entry_type":"H1|H2|H3|L1|L2|L3|range_buy|range_sell|breakout","entry_description":"描述","signal_k_quality":0,"stop_loss":"描述","target":"描述","rr_ratio":0.0,"confidence":"high|medium|low","reasoning":"推理"}],"warnings":["警告"],"summary":"总结"}`;
-}
-
-// ═══ 前端直调AI API ═══
-async function callAI(provider, apiKey, baseUrl, model, images, symbol, timeframes) {
-    const timeframeInfo = timeframes.join('、');
-    const userPrompt = buildAnalysisPrompt(symbol, timeframeInfo);
-
-    // 构建图片内容
-    const imageContents = images.map(img => ({
-        type: "image_url",
-        image_url: { url: `data:${img.mime};base64,${img.base64}` }
-    }));
-
-    if (provider === 'claude') {
-        // Claude API
-        const claudeImages = images.map(img => ({
-            type: "image",
-            source: { type: "base64", media_type: img.mime, data: img.base64 }
-        }));
-
-        const resp = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01',
-                'content-type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: model,
-                max_tokens: 4096,
-                system: SYSTEM_PROMPT,
-                messages: [{ role: 'user', content: [...claudeImages, { type: 'text', text: userPrompt }] }],
-            }),
-        });
-        if (!resp.ok) {
-            const err = await resp.text();
-            throw new Error(`Claude API错误 (${resp.status}): ${err}`);
-        }
-        const data = await resp.json();
-        return data.content[0].text;
-    } else {
-        // OpenAI兼容格式（OpenAI / 智谱 / 通义 / DeepSeek / 自定义）
-        const url = baseUrl.replace(/\/+$/, '') + '/chat/completions';
-        const resp = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: model,
-                messages: [
-                    { role: 'system', content: SYSTEM_PROMPT },
-                    { role: 'user', content: [{ type: 'text', text: userPrompt }, ...imageContents] },
-                ],
-                max_tokens: 4096,
-            }),
-        });
-        if (!resp.ok) {
-            const err = await resp.text();
-            throw new Error(`API错误 (${resp.status}): ${err}`);
-        }
-        const data = await resp.json();
-        return data.choices[0].message.content;
-    }
-}
-
-function parseResponse(raw) {
-    const result = {
-        market_phase: 'unknown', ema20_position: 'unknown', trend_direction: 'unknown',
-        gap_exists: false, gap_bars: 0, push_count: 0,
-        opportunities: [], warnings: [], summary: '', raw_response: raw,
-    };
-
-    let jsonStr = raw.trim();
-    if (jsonStr.startsWith('```')) {
-        const lines = jsonStr.split('\n');
-        jsonStr = lines.slice(1, lines[-1]?.trim() === '```' ? -1 : undefined).join('\n');
-    }
-
-    try {
-        const parsed = JSON.parse(jsonStr);
-        for (const key of ['market_phase','ema20_position','trend_direction','gap_exists','gap_bars','push_count','opportunities','warnings','summary']) {
-            if (key in parsed) result[key] = parsed[key];
-        }
-    } catch {
-        result.summary = raw.substring(0, 500);
-        result.warnings = ['AI返回格式异常，以下为原始分析文本'];
-    }
-    return result;
-}
-
-// ═══ 主分析流程 ═══
+// ═══ 主分析流程 — 调后端接口 ═══
 async function startAnalysis() {
     const symbol = document.getElementById('symbol').value.trim();
     if (!symbol) { alert('请输入标的代码'); return; }
-
-    const apiKey = document.getElementById('apiKey').value.trim();
-    if (!apiKey) { alert('请输入API Key'); return; }
 
     const validSlots = uploadSlots.filter(s => s && s.file);
     if (validSlots.length === 0) { alert('请至少上传一张K线截图'); return; }
 
     const provider = document.getElementById('aiProvider').value;
-    const defaults = PROVIDER_DEFAULTS[provider] || {};
-    const baseUrl = document.getElementById('baseUrl').value.trim() || defaults.baseUrl;
-    const model = document.getElementById('customModel').value.trim() || defaults.model;
 
-    if (!baseUrl) { alert('请填写API Base URL'); return; }
-    if (!model) { alert('请填写模型名称'); return; }
+    // 构建 FormData
+    const formData = new FormData();
+    formData.append('symbol', symbol);
+    formData.append('provider', provider);
 
-    saveConfig();
-
-    // 读取图片
     const tfSelects = document.querySelectorAll('.timeframe-select');
-    const imageData = [];
-    const timeframes = [];
     let slotIdx = 0;
     for (let i = 0; i < uploadSlots.length; i++) {
         if (uploadSlots[i] && uploadSlots[i].file) {
-            const { base64, mime } = await readFileAsBase64(uploadSlots[i].file);
-            imageData.push({ base64, mime });
-            timeframes.push(tfSelects[slotIdx]?.value || '1h');
+            formData.append('images', uploadSlots[i].file);
+            formData.append('timeframes', tfSelects[slotIdx]?.value || '1h');
             slotIdx++;
         }
     }
@@ -698,15 +475,20 @@ async function startAnalysis() {
     document.getElementById('loadingOverlay').classList.add('active');
     document.getElementById('resultArea').classList.remove('active');
     document.getElementById('errorBox').style.display = 'none';
+    document.getElementById('analyzeBtn').disabled = true;
 
     try {
-        const raw = await callAI(provider, apiKey, baseUrl, model, imageData, symbol, timeframes);
-        const result = parseResponse(raw);
+        const resp = await fetch('/api/analyze', {
+            method: 'POST',
+            body: formData,
+        });
+        const result = await resp.json();
         showResult(result);
     } catch (e) {
-        showResult({ error: e.message, opportunities: [], warnings: [], raw_response: e.message });
+        showResult({ error: '请求失败: ' + e.message, opportunities: [], warnings: [], raw_response: e.message });
     } finally {
         document.getElementById('loadingOverlay').classList.remove('active');
+        document.getElementById('analyzeBtn').disabled = false;
     }
 }
 
@@ -784,8 +566,8 @@ function escHtml(s) {
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// 初始化
-loadSavedConfig();
+// 初始化：检查后端配置
+checkConfig();
 </script>
 
 </body>
