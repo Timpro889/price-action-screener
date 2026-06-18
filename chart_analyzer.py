@@ -32,8 +32,8 @@ def _image_to_base64(image_bytes):
 
 
 class ChartAnalyzer:
-    def __init__(self):
-        self.provider = AI_PROVIDER
+    def __init__(self, provider=None):
+        self.provider = provider or AI_PROVIDER
         self.timeout = 120.0
 
     def analyze(self, images, timeframes, symbol):

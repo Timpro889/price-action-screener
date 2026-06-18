@@ -87,17 +87,9 @@ def analyze():
         resp = jsonify({"error": "请至少上传一张K线截图", "opportunities": [], "warnings": []})
         resp.headers["Access-Control-Allow-Origin"] = "*"
         return resp
-
-    # 临时切换 provider
-    import config
-    original_provider = config.AI_PROVIDER
-    config.AI_PROVIDER = provider
-
-    try:
-        analyzer = ChartAnalyzer()
-        result = analyzer.analyze(image_data, timeframes, symbol)
-    finally:
-        config.AI_PROVIDER = original_provider
+    # 用传入的 provider 创建分析器，避免修改全局配置
+    analyzer = ChartAnalyzer(provider=provider)
+    result = analyzer.analyze(image_data, timeframes, symbol)
 
     resp = jsonify(result)
     resp.headers["Access-Control-Allow-Origin"] = "*"

@@ -27,6 +27,41 @@ body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; ba
 .config-status.warn { background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.3); color: #d29922; }
 .config-status code { background: #21262d; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
 
+/* API配置面板 */
+.api-config-panel {
+    background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 20px; overflow: hidden;
+}
+.api-config-header {
+    background: #1c2333; padding: 14px 20px; border-bottom: 1px solid #30363d;
+    display: flex; align-items: center; justify-content: space-between; cursor: pointer;
+}
+.api-config-header h2 { font-size: 15px; color: #f0f6fc; font-weight: 600; }
+.api-config-header .toggle-icon { font-size: 12px; color: #8b949e; transition: transform 0.2s; }
+.api-config-header.open .toggle-icon { transform: rotate(90deg); }
+.api-config-body { padding: 20px; display: none; }
+.api-config-body.open { display: block; }
+
+.config-section { margin-bottom: 20px; }
+.config-section:last-child { margin-bottom: 0; }
+.config-section-title {
+    font-size: 13px; color: #f0f6fc; font-weight: 600; margin-bottom: 12px;
+    padding-bottom: 8px; border-bottom: 1px solid #30363d;
+}
+
+.provider-select { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.provider-btn {
+    padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer;
+    border: 1px solid #30363d; background: #0d1117; color: #8b949e;
+    transition: all 0.15s;
+}
+.provider-btn:hover { border-color: #388bfd; color: #388bfd; }
+.provider-btn.active { background: rgba(56,139,253,0.15); border-color: #388bfd; color: #388bfd; }
+
+.provider-config { display: none; }
+.provider-config.active { display: block; }
+
+.hint-text { font-size: 12px; color: #8b949e; margin-top: 4px; }
+
 /* 截图要求卡片 */
 .req-card {
     background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 20px; overflow: hidden;
@@ -205,6 +240,111 @@ body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; ba
 <!-- 配置状态 -->
 <div id="configStatus" class="config-status warn">正在检查AI配置...</div>
 
+<!-- API配置面板 -->
+<div class="api-config-panel" id="apiConfigPanel">
+    <div class="api-config-header" id="apiConfigHeader" onclick="toggleApiConfig()">
+        <h2>🔐 AI API 配置（仅保存在本机浏览器）</h2>
+        <span class="toggle-icon">▶</span>
+    </div>
+    <div class="api-config-body" id="apiConfigBody">
+        <div class="config-section">
+            <div class="config-section-title">选择AI提供商</div>
+            <div class="provider-select">
+                <button type="button" class="provider-btn active" data-provider="openai" onclick="switchProvider('openai')">OpenAI</button>
+                <button type="button" class="provider-btn" data-provider="claude" onclick="switchProvider('claude')">Claude</button>
+                <button type="button" class="provider-btn" data-provider="zhipu" onclick="switchProvider('zhipu')">智谱</button>
+                <button type="button" class="provider-btn" data-provider="qwen" onclick="switchProvider('qwen')">通义千问</button>
+                <button type="button" class="provider-btn" data-provider="deepseek" onclick="switchProvider('deepseek')">DeepSeek</button>
+            </div>
+        </div>
+
+        <!-- OpenAI配置 -->
+        <div class="provider-config active" id="config-openai">
+            <div class="config-section">
+                <div class="config-section-title">OpenAI 配置</div>
+                <div class="field">
+                    <label>API Key <span class="req">*</span></label>
+                    <input type="password" id="openai_api_key" class="text-input" placeholder="sk-xxxxxxxxxxxxxxxx">
+                </div>
+                <div class="field">
+                    <label>模型名称</label>
+                    <input type="text" id="openai_model" class="text-input" placeholder="gpt-4o" value="gpt-4o">
+                </div>
+                <div class="field">
+                    <label>Base URL（可选，默认使用OpenAI官方）</label>
+                    <input type="text" id="openai_base_url" class="text-input" placeholder="https://api.openai.com/v1">
+                    <div class="hint-text">如需使用第三方代理或兼容API，请填写自定义Base URL</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Claude配置 -->
+        <div class="provider-config" id="config-claude">
+            <div class="config-section">
+                <div class="config-section-title">Anthropic Claude 配置</div>
+                <div class="field">
+                    <label>API Key <span class="req">*</span></label>
+                    <input type="password" id="anthropic_api_key" class="text-input" placeholder="sk-ant-xxxxxxxx">
+                </div>
+                <div class="field">
+                    <label>模型名称</label>
+                    <input type="text" id="anthropic_model" class="text-input" placeholder="claude-sonnet-4-20250514" value="claude-sonnet-4-20250514">
+                </div>
+            </div>
+        </div>
+
+        <!-- 智谱配置 -->
+        <div class="provider-config" id="config-zhipu">
+            <div class="config-section">
+                <div class="config-section-title">智谱 GLM 配置</div>
+                <div class="field">
+                    <label>API Key <span class="req">*</span></label>
+                    <input type="password" id="zhipu_api_key" class="text-input" placeholder="xxxxxxxx.xxxxxxxx">
+                </div>
+                <div class="field">
+                    <label>模型名称</label>
+                    <input type="text" id="zhipu_model" class="text-input" placeholder="glm-4v-plus" value="glm-4v-plus">
+                </div>
+            </div>
+        </div>
+
+        <!-- 通义千问配置 -->
+        <div class="provider-config" id="config-qwen">
+            <div class="config-section">
+                <div class="config-section-title">通义千问 Qwen 配置</div>
+                <div class="field">
+                    <label>API Key <span class="req">*</span></label>
+                    <input type="password" id="dashscope_api_key" class="text-input" placeholder="sk-xxxxxxxx">
+                </div>
+                <div class="field">
+                    <label>模型名称</label>
+                    <input type="text" id="qwen_model" class="text-input" placeholder="qwen-vl-max" value="qwen-vl-max">
+                </div>
+            </div>
+        </div>
+
+        <!-- DeepSeek配置 -->
+        <div class="provider-config" id="config-deepseek">
+            <div class="config-section">
+                <div class="config-section-title">DeepSeek 配置</div>
+                <div class="field">
+                    <label>API Key <span class="req">*</span></label>
+                    <input type="password" id="deepseek_api_key" class="text-input" placeholder="sk-xxxxxxxx">
+                </div>
+                <div class="field">
+                    <label>模型名称</label>
+                    <input type="text" id="deepseek_model" class="text-input" placeholder="deepseek-chat" value="deepseek-chat">
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <button type="button" class="submit-btn" style="flex:1; font-size: 14px; padding: 10px;" onclick="saveApiConfig()">💾 保存配置</button>
+            <button type="button" class="btn-back" style="border: none; cursor: pointer;" onclick="clearApiConfig()">🗑️ 清除配置</button>
+        </div>
+    </div>
+</div>
+
 <!-- 截图要求 -->
 <div class="req-card">
     <div class="req-card-header">
@@ -236,7 +376,7 @@ body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; ba
         </div>
         <div class="field">
             <label>AI模型</label>
-            <select id="aiProvider" class="select-input">
+            <select id="aiProvider" class="select-input" onchange="onProviderChange()">
                 <option value="openai">OpenAI (GPT-4o / GPT-4.1)</option>
                 <option value="claude">Anthropic (Claude)</option>
                 <option value="zhipu">智谱 (GLM-4V)</option>
@@ -355,30 +495,348 @@ body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; ba
 </div>
 
 <script>
+// ═══════════════════════════════════════════════════════════════
+// 系统提示词（与后端 prompt_templates.py 保持一致）
+// ═══════════════════════════════════════════════════════════════
+const SYSTEM_PROMPT = `你是一位精通Al Brooks价格行为学(Price Action)的专业交易分析师。你的任务是根据交易者上传的K线截图，运用价格行为学的核心理论进行客观分析，识别高胜率的交易机会。
+
+你必须严格遵循以下价格行为学知识体系进行分析，不得偏离或编造规则：
+
+## 一、市场周期四阶段
+
+Al Brooks将市场周期分为四个不断循环的阶段：
+
+1. **突破(Breakout)**：力量最强、最不容置疑的单边启动状态。连续大实体K线，几乎无回调。处于Always In模式，只能顺势交易，绝对不能逆势。初始仓位必须缩小，把止损放大。
+
+2. **窄通道(Tight Channel)**：紧贴趋势线运行，回调极为微弱（通常仅1~3根K线），属于Always In的强趋势。只能单边做多/做空。第一次反转尝试有80%的概率会失败。
+
+3. **宽通道(Broad Channel)**：高低点虽有倾向，但K线高度重叠，跟随极为糟糕。逆势一方可逢低做多或逢高做空赚快钱，属于弱趋势，在统计上有75%的概率被反向突破。宽的上涨通道本质上是熊旗，宽的下跌通道本质上是牛旗。
+
+4. **震荡区间(Trading Range)**：价格在特定范围内横盘，高抛低吸。把区间做三等分，在下沿三分之一逢低买入，在上沿三分之一逢高卖出。80%尝试突破的行为都会失败。
+
+## 二、EMA20与均线缺口
+
+- 价格在EMA20上方=多头趋势，下方=空头趋势
+- **均线缺口(MAG)**：K线连续运行，最高价或最低价完全没有碰到EMA20。如果多头制造了40~60根K线均不触碰EMA20的均线缺口，代表多头趋势极强，此时绝对不能做空
+- 突然出现一根大阴线收在EMA20下方是一次反转尝试，但如果后面没有连续阴线收在均线下方，说明反转尝试失败
+
+## 三、80/20规则
+
+- 震荡区间中80%尝试突破的行为都会失败
+- 趋势行情中80%尝试反转的行为也会失败
+- 突破的本质是想要"改变市场惯性"的行为
+
+## 四、信号K线
+
+- **趋势K线**：实体部分很大，上下影线占比小，大阴线收低/大阳线收高，是极佳的信号K线
+- **震荡K线**：实体小影线大（如十字星），不具备方向性。底部十字星不代表反转！
+- **铁律：Context永远大于信号K** — 同一根K线在不同环境下含义截然相反。强趋势的第一次反转尝试80%会失败
+- **正确入场**：在信号K线的极端点上方/下方一个tick挂Stop Order，等待下一根K线触发
+
+## 五、计数K线系统 (H1/H2/L1/L2)
+
+- **H1/L1**：第一次出现K线高点/低点超越前一根。胜率一般
+- **H2/L2（黄金入场点）**：第二次出现，对应ABC两段式回调或双底牛旗/双顶熊旗。胜率极高，因为空头/多头使出浑身解数却无法突破，陷入绝望被迫平仓，两股力量瞬间汇合爆发
+- **H3/L3**：第三次出现，等同于楔形牛旗/熊旗，需配合高重叠才是好楔形
+
+## 六、好楔形 vs 坏楔形
+
+- **好楔形**：三推过程中K线大量重叠、回撤深。逆势方能赚钱=顺势力量衰竭，反转概率最高可达75%
+- **坏楔形**：窄通道式无重叠的三推。本质是窄通道/强趋势日，不是真正的Wedge。盲目数三推摸顶抓反转属于严重逆势，会累积毁灭性亏损
+
+## 七、订单类型
+
+- **Stop Order**：顺势入场用。需要市场"最小程度同意你的观点"，突破不了就不成交，保护本金
+- **Limit Order**：震荡区间用。赌突破失败，高抛低吸
+- **Market Order**：极强趋势Always In时可用，或突发反向行情紧急离场
+
+## 八、止损铁律
+
+- 必须设置保护性止损，挂在系统里，不是心理止损
+- 止损用Stop Market而非Stop Limit（确保100%执行）
+- **臭止损(Skunk Stop)**：在区间极端位置因恐惧斩仓。做多时止损放在区间下沿1/3=臭止损；做空时止损放在区间上沿1/3=臭止损
+- 单笔风险不超过账户1%~2%
+
+## 九、目标位与盈亏比
+
+- **Measured Move**：震荡区间突破后高度翻倍；Leg1=Leg2等长；突破K线实体高度翻倍
+- **实际风险(Actual Risk)**：入场后市场朝有利方向爆发，初始止损从未被威胁，从入场点到最远反向距离+1tick才是实际风险
+- 1倍实际风险止盈胜率80%~90%；2倍实际风险是波段交易完美平衡点
+- **40%胜率+2R盈亏比=稳定盈利**
+- **Smart Trade**：1倍止损距离止盈半数仓位锁定利润，剩余仓位保本损死拿大级别反转
+
+## 十、三推离场法则
+
+- 行情发展到第三推时，逢高减仓落袋为安是永远正确的决定
+- 第三推之后往往伴随强烈的周期转换或深幅反转
+- 楔形失败时，行情会将楔形振幅向顺势方向翻1~2倍走测量运动
+
+## 十一、第二段陷阱
+
+- 震荡区间内第二段行情K线看起来极强势，但100%是陷阱
+- 区间内第二段永远不加仓、不开仓
+- 必须到达关键位分批止盈，寻找反转信号
+
+## 十二、多周期共振
+
+- 价格行为学规律在所有时间周期完全通用
+- 小周期的复杂结构在大周期上往往是简单的单一结构
+- 多个时间周期同时出现同方向信号=共振，胜率大幅提升
+- 推荐分析顺序：先看大周期定方向，再看小周期找入场点`;
+
+function buildAnalysisPrompt(symbol, timeframeInfo) {
+    return `请对上传的K线截图进行价格行为学分析。
+
+## 截图信息
+- 标的：${symbol}
+- 时间级别：${timeframeInfo}
+
+## 分析要求
+
+请严格按照以下框架逐步分析，每一步都必须给出明确判断和依据：
+
+### 第1步：市场环境识别
+- 当前处于市场周期四阶段中的哪个阶段？（突破/窄通道/宽通道/震荡区间）
+- 价格在EMA20上方还是下方？
+- 是否存在均线缺口(MAG)？如果有，大约多少根K线未触碰EMA20？
+- 当前行情走了几推（几段）？
+
+### 第2步：趋势方向判断
+- 大趋势方向是什么（多头/空头/震荡）？
+- 如果有多个时间级别的截图，大周期方向是什么？小周期方向是什么？是否共振？
+
+### 第3步：交易机会识别
+**只指出较高胜率的交易机会**，必须满足以下至少一项条件：
+- 顺势交易（方向与EMA20和市场周期一致）
+- H2/L2入场点（黄金入场点）
+- H3/L3 + 高重叠好楔形
+- 震荡区间中的高抛低吸（在区间1/3极端位置）
+- 多周期共振确认
+
+**绝对不要推荐以下低胜率操作**：
+- 窄通道/突破中逆势交易
+- 震荡区间边缘追第二段
+- 坏楔形（窄通道式无重叠）逆势
+- 没有信号K确认的入场
+
+### 第4步：对每个交易机会给出具体方案
+对每个识别出的机会，提供：
+- 交易方向（做多/做空）
+- 入场类型（H1/H2/H3/L1/L2/L3/区间高抛低吸等）
+- 入场描述（具体在什么位置、什么条件下入场）
+- 信号K线质量评分（0-100，基于实体大小、收盘位置、影线方向）
+- 止损位置及理由
+- 目标位及测算依据（Measured Move/Leg1=Leg2等）
+- 盈亏比
+- 置信度（high/medium/low）
+
+### 第5步：风险警告
+列出所有需要注意的风险点，例如：
+- 第三推已出现，注意减仓
+- 当前处于震荡区间，突破大概率失败
+- 逆势操作风险
+- 臭止损风险位置
+
+## 输出格式
+
+请用以下JSON格式输出分析结果（不要输出JSON以外的内容，不要用markdown代码块包裹）：
+
+{
+  "market_phase": "breakout|tight_channel|broad_channel|trading_range",
+  "ema20_position": "above|below|crossing",
+  "trend_direction": "bullish|bearish|neutral",
+  "gap_exists": true或false,
+  "gap_bars": 0,
+  "push_count": 0,
+  "opportunities": [
+    {
+      "direction": "long|short",
+      "entry_type": "H1|H2|H3|L1|L2|L3|range_buy|range_sell|breakout",
+      "entry_description": "具体入场描述",
+      "signal_k_quality": 0,
+      "stop_loss": "止损位置描述",
+      "target": "目标位描述",
+      "rr_ratio": 0.0,
+      "confidence": "high|medium|low",
+      "reasoning": "完整推理过程"
+    }
+  ],
+  "warnings": ["警告1", "警告2"],
+  "summary": "整体市场状况和操作建议的简要总结"
+}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // 上传状态
+// ═══════════════════════════════════════════════════════════════
 let uploadSlots = [null];
 let slotCount = 1;
 const MAX_SLOTS = 3;
 
-// 检查后端 AI 配置状态
-async function checkConfig() {
+// ═══════════════════════════════════════════════════════════════
+// API配置管理（localStorage）
+// ═══════════════════════════════════════════════════════════════
+const CONFIG_KEYS = {
+    openai: { key: 'OPENAI_API_KEY', model: 'OPENAI_MODEL', baseUrl: 'OPENAI_BASE_URL' },
+    claude: { key: 'ANTHROPIC_API_KEY', model: 'ANTHROPIC_MODEL' },
+    zhipu: { key: 'ZHIPU_API_KEY', model: 'ZHIPU_MODEL' },
+    qwen: { key: 'DASHSCOPE_API_KEY', model: 'QWEN_MODEL' },
+    deepseek: { key: 'DEEPSEEK_API_KEY', model: 'DEEPSEEK_MODEL' }
+};
+
+const PROVIDER_DEFAULTS = {
+    openai: { model: 'gpt-4o', baseUrl: 'https://api.openai.com/v1' },
+    claude: { model: 'claude-sonnet-4-20250514' },
+    zhipu: { model: 'glm-4v-plus' },
+    qwen: { model: 'qwen-vl-max' },
+    deepseek: { model: 'deepseek-chat' }
+};
+
+function loadApiConfig() {
+    const cfg = {};
+    for (const provider of Object.keys(CONFIG_KEYS)) {
+        const keys = CONFIG_KEYS[provider];
+        cfg[provider] = {
+            apiKey: localStorage.getItem(keys.key) || '',
+            model: localStorage.getItem(keys.model) || PROVIDER_DEFAULTS[provider].model,
+            baseUrl: keys.baseUrl ? (localStorage.getItem(keys.baseUrl) || PROVIDER_DEFAULTS[provider].baseUrl) : ''
+        };
+    }
+    return cfg;
+}
+
+function saveApiConfig() {
+    const provider = document.querySelector('.provider-btn.active')?.dataset.provider || 'openai';
+    const keys = CONFIG_KEYS[provider];
+    const defaults = PROVIDER_DEFAULTS[provider];
+
+    if (keys.baseUrl) {
+        const baseUrl = document.getElementById(`${provider}_base_url`)?.value?.trim();
+        if (baseUrl) localStorage.setItem(keys.baseUrl, baseUrl);
+        else localStorage.removeItem(keys.baseUrl);
+    }
+
+    const apiKey = document.getElementById(`${provider}_api_key`)?.value?.trim();
+    const model = document.getElementById(`${provider}_model`)?.value?.trim() || defaults.model;
+
+    if (apiKey) {
+        localStorage.setItem(keys.key, apiKey);
+        localStorage.setItem(keys.model, model);
+    } else {
+        localStorage.removeItem(keys.key);
+        localStorage.removeItem(keys.model);
+    }
+
+    // 保存当前选中的provider
+    localStorage.setItem('AI_PROVIDER', provider);
+
+    // 同步更新基本信息中的选择
+    document.getElementById('aiProvider').value = provider;
+
+    updateConfigStatus();
+    alert('配置已保存到浏览器本地存储');
+}
+
+function clearApiConfig() {
+    if (!confirm('确定要清除所有API配置吗？')) return;
+    for (const provider of Object.keys(CONFIG_KEYS)) {
+        const keys = CONFIG_KEYS[provider];
+        localStorage.removeItem(keys.key);
+        localStorage.removeItem(keys.model);
+        if (keys.baseUrl) localStorage.removeItem(keys.baseUrl);
+    }
+    localStorage.removeItem('AI_PROVIDER');
+
+    // 清空输入框
+    document.querySelectorAll('.provider-config input').forEach(input => input.value = '');
+    document.querySelectorAll('.provider-config input[id$="_model"]').forEach(input => {
+        const provider = input.id.replace('_model', '');
+        input.value = PROVIDER_DEFAULTS[provider]?.model || '';
+    });
+
+    updateConfigStatus();
+    alert('配置已清除');
+}
+
+function getApiConfig(provider) {
+    const keys = CONFIG_KEYS[provider];
+    const defaults = PROVIDER_DEFAULTS[provider];
+    return {
+        apiKey: localStorage.getItem(keys.key) || '',
+        model: localStorage.getItem(keys.model) || defaults.model,
+        baseUrl: keys.baseUrl ? (localStorage.getItem(keys.baseUrl) || defaults.baseUrl) : ''
+    };
+}
+
+function isConfigured(provider) {
+    return !!getApiConfig(provider).apiKey;
+}
+
+function updateConfigStatus() {
     const statusEl = document.getElementById('configStatus');
-    try {
-        const resp = await fetch('/api/config');
-        const cfg = await resp.json();
-        if (cfg.configured) {
-            statusEl.className = 'config-status ok';
-            statusEl.textContent = '✅ AI模型已配置：' + (cfg.provider_name || cfg.provider);
-        } else {
-            statusEl.className = 'config-status warn';
-            statusEl.innerHTML = '⚠️ 当前AI模型（' + (cfg.provider_name || cfg.provider) + '）未配置API Key。请联系管理员在服务端配置环境变量或 <code>ai_config.json</code>。';
-        }
-    } catch (e) {
+    const provider = document.getElementById('aiProvider').value;
+    const cfg = getApiConfig(provider);
+
+    if (cfg.apiKey) {
+        statusEl.className = 'config-status ok';
+        const names = { openai: 'OpenAI', claude: 'Claude', zhipu: '智谱', qwen: '通义千问', deepseek: 'DeepSeek' };
+        statusEl.textContent = `✅ 当前AI模型：${names[provider]}（API Key已配置，仅保存在本机浏览器）`;
+    } else {
         statusEl.className = 'config-status warn';
-        statusEl.textContent = '⚠️ 无法检查AI配置状态，请确保后端服务正常运行。';
+        statusEl.innerHTML = '⚠️ 未配置API Key。请点击上方"🔐 AI API 配置"面板，填写对应模型的API Key。配置仅保存在浏览器本地，不会上传到服务器。';
     }
 }
 
+function toggleApiConfig() {
+    const header = document.getElementById('apiConfigHeader');
+    const body = document.getElementById('apiConfigBody');
+    header.classList.toggle('open');
+    body.classList.toggle('open');
+}
+
+function switchProvider(provider) {
+    // 更新按钮状态
+    document.querySelectorAll('.provider-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.provider === provider);
+    });
+    // 更新配置面板显示
+    document.querySelectorAll('.provider-config').forEach(cfg => {
+        cfg.classList.toggle('active', cfg.id === `config-${provider}`);
+    });
+}
+
+function onProviderChange() {
+    const provider = document.getElementById('aiProvider').value;
+    switchProvider(provider);
+    updateConfigStatus();
+}
+
+function initApiConfigUI() {
+    const cfg = loadApiConfig();
+    const savedProvider = localStorage.getItem('AI_PROVIDER') || 'openai';
+
+    // 填充各provider的配置
+    for (const [provider, data] of Object.entries(cfg)) {
+        const keyInput = document.getElementById(`${provider}_api_key`);
+        const modelInput = document.getElementById(`${provider}_model`);
+        if (keyInput) keyInput.value = data.apiKey;
+        if (modelInput) modelInput.value = data.model;
+
+        if (CONFIG_KEYS[provider].baseUrl) {
+            const baseUrlInput = document.getElementById(`${provider}_base_url`);
+            if (baseUrlInput) baseUrlInput.value = data.baseUrl || '';
+        }
+    }
+
+    // 设置当前provider
+    document.getElementById('aiProvider').value = savedProvider;
+    switchProvider(savedProvider);
+    updateConfigStatus();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 文件上传
+// ═══════════════════════════════════════════════════════════════
 function handleFileSelect(input, index) {
     const file = input.files[0];
     if (!file) return;
@@ -447,7 +905,140 @@ function removeUploadSlot(idx) {
     if (slotCount < MAX_SLOTS) document.getElementById('addUploadBtn').style.display = 'block';
 }
 
-// ═══ 主分析流程 — 调后端接口 ═══
+// ═══════════════════════════════════════════════════════════════
+// 图片转base64
+// ═══════════════════════════════════════════════════════════════
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AI API调用（前端直调）
+// ═══════════════════════════════════════════════════════════════
+async function callOpenAI(apiKey, model, baseUrl, prompt, images) {
+    const content = [{ type: 'text', text: prompt }];
+    for (const img of images) {
+        content.push({
+            type: 'image_url',
+            image_url: { url: `data:${img.mime};base64,${img.base64}` }
+        });
+    }
+
+    const url = baseUrl.replace(/\/$/, '') + '/chat/completions';
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: model,
+            messages: [
+                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'user', content: content }
+            ],
+            max_tokens: 4096,
+        }),
+    });
+
+    if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`API请求失败 (${resp.status}): ${errText}`);
+    }
+
+    const data = await resp.json();
+    return data.choices[0].message.content;
+}
+
+async function callClaude(apiKey, model, prompt, images) {
+    const content = [];
+    for (const img of images) {
+        content.push({
+            type: 'image',
+            source: {
+                type: 'base64',
+                media_type: img.mime,
+                data: img.base64,
+            },
+        });
+    }
+    content.push({ type: 'text', text: prompt });
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: model,
+            max_tokens: 4096,
+            system: SYSTEM_PROMPT,
+            messages: [{ role: 'user', content: content }],
+        }),
+    });
+
+    if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`API请求失败 (${resp.status}): ${errText}`);
+    }
+
+    const data = await resp.json();
+    return data.content[0].text;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 解析AI返回
+// ═══════════════════════════════════════════════════════════════
+function parseResponse(raw) {
+    const result = {
+        market_phase: 'unknown',
+        ema20_position: 'unknown',
+        trend_direction: 'unknown',
+        gap_exists: false,
+        gap_bars: 0,
+        push_count: 0,
+        opportunities: [],
+        warnings: [],
+        summary: '',
+        raw_response: raw,
+    };
+
+    let jsonStr = raw.trim();
+
+    // 去掉可能的markdown代码块包裹
+    if (jsonStr.startsWith('```')) {
+        const lines = jsonStr.split('\n');
+        jsonStr = lines.slice(1, lines.length - (lines[lines.length - 1].trim() === '```' ? 1 : 0)).join('\n');
+    }
+
+    try {
+        const parsed = JSON.parse(jsonStr);
+        for (const key of ['market_phase', 'ema20_position', 'trend_direction',
+                           'gap_exists', 'gap_bars', 'push_count',
+                           'opportunities', 'warnings', 'summary']) {
+            if (key in parsed) result[key] = parsed[key];
+        }
+    } catch (e) {
+        result.summary = raw.slice(0, 500);
+        result.warnings = ['AI返回格式异常，以下为原始分析文本'];
+    }
+
+    return result;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 主分析流程（前端直调AI API）
+// ═══════════════════════════════════════════════════════════════
 async function startAnalysis() {
     const symbol = document.getElementById('symbol').value.trim();
     if (!symbol) { alert('请输入标的代码'); return; }
@@ -456,21 +1047,27 @@ async function startAnalysis() {
     if (validSlots.length === 0) { alert('请至少上传一张K线截图'); return; }
 
     const provider = document.getElementById('aiProvider').value;
+    const cfg = getApiConfig(provider);
 
-    // 构建 FormData
-    const formData = new FormData();
-    formData.append('symbol', symbol);
-    formData.append('provider', provider);
+    if (!cfg.apiKey) {
+        alert('请先配置API Key。点击上方"AI API 配置"面板进行设置。');
+        toggleApiConfig();
+        return;
+    }
 
+    // 收集时间级别
     const tfSelects = document.querySelectorAll('.timeframe-select');
+    const timeframes = [];
     let slotIdx = 0;
     for (let i = 0; i < uploadSlots.length; i++) {
         if (uploadSlots[i] && uploadSlots[i].file) {
-            formData.append('images', uploadSlots[i].file);
-            formData.append('timeframes', tfSelects[slotIdx]?.value || '1h');
+            timeframes.push(tfSelects[slotIdx]?.value || '1h');
             slotIdx++;
         }
     }
+
+    const timeframeInfo = timeframes.join('、');
+    const userPrompt = buildAnalysisPrompt(symbol, timeframeInfo);
 
     document.getElementById('loadingOverlay').classList.add('active');
     document.getElementById('resultArea').classList.remove('active');
@@ -478,20 +1075,47 @@ async function startAnalysis() {
     document.getElementById('analyzeBtn').disabled = true;
 
     try {
-        const resp = await fetch('/api/analyze', {
-            method: 'POST',
-            body: formData,
-        });
-        const result = await resp.json();
+        // 读取所有图片为base64
+        const images = [];
+        for (let i = 0; i < uploadSlots.length; i++) {
+            if (uploadSlots[i] && uploadSlots[i].file) {
+                const base64 = await fileToBase64(uploadSlots[i].file);
+                images.push({
+                    base64: base64,
+                    mime: uploadSlots[i].file.type || 'image/png'
+                });
+            }
+        }
+
+        // 调用对应API
+        let raw;
+        if (provider === 'openai') {
+            raw = await callOpenAI(cfg.apiKey, cfg.model, cfg.baseUrl, userPrompt, images);
+        } else if (provider === 'claude') {
+            raw = await callClaude(cfg.apiKey, cfg.model, userPrompt, images);
+        } else {
+            // zhipu, qwen, deepseek 都使用 OpenAI 兼容格式
+            const baseUrls = {
+                zhipu: 'https://open.bigmodel.cn/api/paas/v4',
+                qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+                deepseek: 'https://api.deepseek.com/v1'
+            };
+            raw = await callOpenAI(cfg.apiKey, cfg.model, baseUrls[provider], userPrompt, images);
+        }
+
+        const result = parseResponse(raw);
         showResult(result);
     } catch (e) {
-        showResult({ error: '请求失败: ' + e.message, opportunities: [], warnings: [], raw_response: e.message });
+        showResult({ error: 'AI分析失败: ' + e.message, opportunities: [], warnings: [], raw_response: e.message });
     } finally {
         document.getElementById('loadingOverlay').classList.remove('active');
         document.getElementById('analyzeBtn').disabled = false;
     }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// 结果展示（保持原有逻辑不变）
+// ═══════════════════════════════════════════════════════════════
 function showResult(r) {
     const area = document.getElementById('resultArea');
     area.classList.add('active');
@@ -518,6 +1142,8 @@ function showResult(r) {
     if (r.summary) {
         document.getElementById('summaryBox').style.display = 'block';
         document.getElementById('summaryText').textContent = r.summary;
+    } else {
+        document.getElementById('summaryBox').style.display = 'none';
     }
 
     const oppSection = document.getElementById('oppSection');
@@ -566,8 +1192,10 @@ function escHtml(s) {
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// 初始化：检查后端配置
-checkConfig();
+// ═══════════════════════════════════════════════════════════════
+// 初始化
+// ═══════════════════════════════════════════════════════════════
+initApiConfigUI();
 </script>
 
 </body>
